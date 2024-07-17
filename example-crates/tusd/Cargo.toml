@@ -1,0 +1,25 @@
+[package]
+name = "tusd"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+anyhow = "1"
+web_sys_resumable = { path = "../../resumable" }
+wasm-bindgen-futures = "0.4.42"
+wasm-bindgen = "0.2.92"
+js-sys = "0.3.69"
+console_error_panic_hook = "0.1.7"
+
+[dependencies.web-sys]
+version = "0.3"
+features = ["File", "console"]
+
+# patch for node support
+[dependencies.gloo-net]
+path = "../../../gloo/crates/net"
+# git = "https://github.com/littlebenlittle/gloo"
+# branch = "littlebenlittle/feature/net_support_node"
