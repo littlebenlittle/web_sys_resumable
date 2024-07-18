@@ -2,15 +2,6 @@
 
 Demonstrates how to use `ResumableUpload` to create a [TUSD protocol](https://tus.io/protocols/resumable-upload) client.
 
-## Quick Run
-
-```sh
-# podman-compose or docker-compose
-podman-compose up
-```
-
-## Breakdown
-
 ### Compile the example client
 
 Build `wasm`
