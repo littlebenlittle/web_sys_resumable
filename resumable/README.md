@@ -1,6 +1,6 @@
 # Resumable Upload for `web_sys::File`
 
-A zero-allocation wrapper for `web_sys::File` that enables resumable uploads
+An almost zero-allocation wrapper for `web_sys::File` that enables resumable uploads
 with serializable metadata.
 
 ## Use
