@@ -18,8 +18,6 @@ console_error_panic_hook = "0.1.7"
 version = "0.3"
 features = ["File", "console"]
 
-# patch for node support
 [dependencies.gloo-net]
-path = "../../../gloo/crates/net"
-# git = "https://github.com/littlebenlittle/gloo"
-# branch = "littlebenlittle/feature/net_support_node"
+git = "https://github.com/rustwasm/gloo"
+branch = "master"

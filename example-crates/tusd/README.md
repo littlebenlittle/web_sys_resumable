@@ -19,10 +19,6 @@ Build `wasm`
 wasm-pack build -t nodejs
 ```
 
-### Transpile the js glue
-
-Build
-
 ### Start `tusd` reference server
 
 ```
@@ -30,12 +26,12 @@ podman run \
     -d \
     --rm \
     --name tusd \
-    -p 1080 \
+    -p 1080:1080 \
     docker.io/tusproject/tusd:v1.9
 ```
 
 ### Run the example client
 
 ```
-node dist/client.js
+node index.js
 ```
