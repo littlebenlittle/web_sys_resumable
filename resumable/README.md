@@ -7,4 +7,4 @@ with serializable metadata.
 
 ### TUSD Example
 
-See the [`tusd-example`](example-crates/tusd).
+See the [`tusd-example`](/example-crates/tusd).
