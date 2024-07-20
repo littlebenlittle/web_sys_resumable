@@ -8,7 +8,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 anyhow = "1"
-web_sys_resumable = { path = "../../resumable" }
+web_sys_resumable = { path = "../resumable" }
 wasm-bindgen-futures = "0.4"
 wasm-bindgen = "0.2"
 js-sys = "0.3"
@@ -21,4 +21,8 @@ features = ["File", "console"]
 [dependencies.gloo-net]
 git = "https://github.com/rustwasm/gloo"
 branch = "master"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+wasm-bindgen = "0.2"
 

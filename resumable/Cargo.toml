@@ -17,4 +17,3 @@ features = ["console", "File"]
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 wasm-bindgen = "0.2"
-once_cell = "1"
