@@ -7,6 +7,7 @@ See [`/resumable`](resumable/) crate.
 
 ## TODOs
 
-- [ ] tests
+- [x] tests
+- [ ] CI
 - [ ] v0.1.0 release
 - [ ] publish to crates.io
