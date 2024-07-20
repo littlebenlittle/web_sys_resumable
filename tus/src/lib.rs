@@ -29,7 +29,7 @@ pub async fn new_upload<'a>(
 }
 
 /// Continue a previously registered upload
-async fn continue_upload<'a>(
+pub async fn continue_upload<'a>(
     upload: &'a mut ResumableUpload<'a>,
     location: &str,
 ) -> anyhow::Result<()> {
