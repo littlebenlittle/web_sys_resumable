@@ -3,7 +3,7 @@ use std::future::Future;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::File;
+use web_sys::{Blob, File};
 
 // TODO BYO digest function
 /// Metadata for a resumable upload. Can be serialized and
@@ -83,7 +83,7 @@ impl<'a> ResumableUpload<'a> {
 
     pub async fn for_each_unsent<F, Fut>(&mut self, f: F)
     where
-        F: Fn(i32, String) -> Fut,
+        F: Fn(i32, Blob) -> Fut,
         Fut: Future<Output = bool>,
     {
         let mut i = 0;
@@ -93,12 +93,7 @@ impl<'a> ResumableUpload<'a> {
                 let start = i * self.data.chunk_sz;
                 let end = (start + self.data.chunk_sz).min(file_sz);
                 let chunk = self.file.slice_with_i32_and_i32(start, end).unwrap();
-                let text = JsFuture::from(chunk.text())
-                    .await
-                    .unwrap()
-                    .as_string()
-                    .unwrap();
-                *sent = f(i, text).await;
+                *sent = f(i, chunk).await;
             }
             i += 1;
         }

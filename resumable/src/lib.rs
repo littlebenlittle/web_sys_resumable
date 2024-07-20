@@ -6,6 +6,7 @@ mod tests {
 
     use super::ResumableUpload;
     use wasm_bindgen::JsValue;
+    use wasm_bindgen_futures::JsFuture;
     use wasm_bindgen_test::wasm_bindgen_test;
 
     fn blah_file(num: usize) -> web_sys::File {
@@ -20,7 +21,12 @@ mod tests {
         let mut upload = ResumableUpload::new(&file, 4).await?;
         assert_eq!("blah.txt", upload.file_name());
         upload
-            .for_each_unsent(|i, text| async move {
+            .for_each_unsent(|i, chunk| async move {
+                let text = JsFuture::from(chunk.text())
+                    .await
+                    .unwrap()
+                    .as_string()
+                    .unwrap();
                 assert_eq!("blah", text, "chunk {}", i);
                 if i == 2 {
                     false // pretend the 2nd chunk failed to send
@@ -31,7 +37,12 @@ mod tests {
             .await;
         assert_eq!(upload.chunks() - 1, upload.sent());
         upload
-            .for_each_unsent(|_, text| async move {
+            .for_each_unsent(|_, chunk| async move {
+                let text = JsFuture::from(chunk.text())
+                    .await
+                    .unwrap()
+                    .as_string()
+                    .unwrap();
                 assert_eq!("blah", text);
                 true
             })

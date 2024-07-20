@@ -1,3 +1,5 @@
+use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::JsFuture;
 use web_sys_resumable::ResumableUpload;
 
 /// Registers a new resumable upload with the remote located at `href`.
@@ -35,13 +37,18 @@ pub async fn continue_upload<'a>(
 ) -> anyhow::Result<()> {
     let chunk_sz = upload.chunk_size();
     upload
-        .for_each_unsent(move |i, text| async move {
+        .for_each_unsent(move |i, chunk| async move {
+            let buf = JsFuture::from(chunk.array_buffer())
+                .await
+                .unwrap()
+                .dyn_into::<js_sys::ArrayBuffer>()
+                .unwrap();
             let res = gloo_net::http::Request::patch(location)
-                .header("Content-Length", text.len().to_string().as_str())
+                .header("Content-Length", buf.byte_length().to_string().as_str())
                 .header("Upload-Offset", (i * chunk_sz).to_string().as_str())
                 .header("Content-Type", "application/offset+octet-stream")
                 .header("Tus-Resumable", "1.0.0")
-                .body(text)
+                .body(buf)
                 .expect("error setting request body")
                 .send()
                 .await
