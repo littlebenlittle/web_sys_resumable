@@ -1,9 +1,9 @@
-use js_sys::wasm_bindgen::JsValue;
+use std::future::Future;
+
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use wasm_bindgen_futures::JsFuture;
-
-use crate::{unwrap_js, ChunkIter};
+use web_sys::File;
 
 // TODO BYO digest function
 /// Metadata for a resumable upload. Can be serialized and
@@ -18,7 +18,7 @@ pub struct ResumableUploadData {
 
 impl ResumableUploadData {
     /// Create a new resumable upload from a file.
-    pub async fn new<'a>(file: &'a web_sys::File, chunk_sz: i32) -> Result<Self, JsValue> {
+    pub async fn new<'a>(file: &'a File, chunk_sz: i32) -> anyhow::Result<Self> {
         let file_sz = file.size() as i32;
         let mut nchunks = (file_sz) / chunk_sz;
         if file_sz % chunk_sz != 0 {
@@ -34,19 +34,25 @@ impl ResumableUploadData {
 
     /// Restore the data backing this resumable upload. Returns an error if
     /// the hashes do not match.
-    pub async fn enliven<'a>(self, file: &'a web_sys::File) -> anyhow::Result<ResumableUpload<'a>> {
-        let hash = unwrap_js!(Self::hash_parts(file).await);
+    pub async fn enliven<'a>(self, file: &'a File) -> anyhow::Result<ResumableUpload<'a>> {
+        let hash = Self::hash_parts(file).await?;
         if hash != self.hash {
             anyhow::bail!("hashes don't match")
         }
         Ok(ResumableUpload { data: self, file })
     }
 
-    async fn hash_parts(file: &web_sys::File) -> Result<[[u8; 32]; 8], JsValue> {
+    async fn hash_parts(file: &File) -> anyhow::Result<[[u8; 32]; 8]> {
         let mut hasher = sha2::Sha256::default();
-        for chunk in ChunkIter::new(file, 80_000) {
-            let v = blob_to_vec(&chunk).await?;
-            hasher.update(v)
+        let file_sz = file.size() as i32;
+        for i in 0..(file_sz / 80_000 + 1) {
+            let start = i * 80_000;
+            let end = (start + 80_000).min(file_sz);
+            let chunk = file.slice_with_i32_and_i32(start, end).unwrap();
+            match JsFuture::from(chunk.text()).await {
+                Ok(v) => hasher.update(v.as_string().unwrap().as_bytes()),
+                Err(e) => anyhow::bail!(e.as_string().unwrap()),
+            }
         }
         let mut parts = [[0u8; 32]; 8];
         let mut i = 0;
@@ -60,31 +66,42 @@ impl ResumableUploadData {
 
 pub struct ResumableUpload<'a> {
     data: ResumableUploadData,
-    file: &'a web_sys::File,
+    file: &'a File,
 }
 
 impl<'a> ResumableUpload<'a> {
-    pub async fn new(
-        file: &'a web_sys::File,
-        chunk_sz: i32,
-    ) -> Result<ResumableUpload<'a>, JsValue> {
+    pub async fn new(file: &'a File, chunk_sz: i32) -> anyhow::Result<ResumableUpload<'a>> {
         Ok(Self {
             data: ResumableUploadData::new(file, chunk_sz).await?,
             file,
         })
     }
 
-    pub fn iter_unsent(&'a self) -> impl Iterator<Item = (web_sys::Blob, i32)> + 'a {
-        let iter = ChunkIter::new(self.file, self.data.chunk_sz);
-        iter.zip(self.data.sent.iter())
-            .zip(0..self.data.sent.len())
-            .filter_map(move |((chunk, is_sent), index)| {
-                if !is_sent {
-                    Some((chunk, index as i32))
-                } else {
-                    None
-                }
-            })
+    pub fn file_name(&self) -> String {
+        self.file.name()
+    }
+
+    pub async fn for_each_unsent<F, Fut>(&mut self, f: F)
+    where
+        F: Fn(i32, String) -> Fut,
+        Fut: Future<Output = bool>,
+    {
+        let mut i = 0;
+        let file_sz = self.file.size() as i32;
+        for sent in &mut self.data.sent {
+            if !*sent {
+                let start = i * self.data.chunk_sz;
+                let end = (start + self.data.chunk_sz).min(file_sz);
+                let chunk = self.file.slice_with_i32_and_i32(start, end).unwrap();
+                let text = JsFuture::from(chunk.text())
+                    .await
+                    .unwrap()
+                    .as_string()
+                    .unwrap();
+                *sent = f(i, text).await;
+            }
+            i += 1;
+        }
     }
 
     #[inline(always)]
@@ -93,8 +110,19 @@ impl<'a> ResumableUpload<'a> {
     }
 
     #[inline(always)]
-    pub fn nchunks(&self) -> i32 {
-        self.data.sent.len() as i32
+    pub fn chunks(&self) -> u64 {
+        self.data.sent.len() as u64
+    }
+
+    #[inline(always)]
+    pub fn sent(&self) -> u64 {
+        let mut n = 0;
+        for sent in &self.data.sent {
+            if *sent {
+                n += 1
+            }
+        }
+        return n;
     }
 
     #[inline(always)]
@@ -106,10 +134,4 @@ impl<'a> ResumableUpload<'a> {
     pub fn size(&self) -> i32 {
         self.file.size() as i32
     }
-}
-
-async fn blob_to_vec(blob: &web_sys::Blob) -> Result<Vec<u8>, js_sys::wasm_bindgen::JsValue> {
-    let array_buffer = JsFuture::from(blob.array_buffer()).await?;
-    let uint8_array = js_sys::Uint8Array::new(&array_buffer);
-    Ok(uint8_array.to_vec())
 }

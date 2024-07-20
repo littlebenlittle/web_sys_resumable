@@ -1,11 +1,8 @@
 extern crate console_error_panic_hook;
 extern crate wasm_bindgen;
 
-use anyhow::Context;
 use std::panic;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::JsFuture;
-use web_sys::Blob;
 use web_sys_resumable::ResumableUpload;
 
 macro_rules! log {
@@ -42,10 +39,7 @@ async fn new_upload<'a>(
     href: &str,
     chunk_sz: i32,
 ) -> anyhow::Result<(ResumableUpload<'a>, String)> {
-    let upload = match ResumableUpload::new(file, chunk_sz).await {
-        Ok(u) => u,
-        Err(e) => anyhow::bail!(e.as_string().unwrap()),
-    };
+    let upload = ResumableUpload::new(file, chunk_sz).await?;
     log!("upload size: {}", file.size());
     log!("number of chunks: {}", (file.size() as i32 / chunk_sz));
     let res = gloo_net::http::Request::post(href)
@@ -73,51 +67,27 @@ async fn continue_upload<'a>(
     upload: &'a mut ResumableUpload<'a>,
     location: &str,
 ) -> anyhow::Result<()> {
+    let nchunks = upload.chunks();
     let chunk_sz = upload.chunk_size();
-    let nchunks = upload.nchunks();
-    for (chunk, index) in upload.iter_unsent() {
-        let offset = if index < nchunks {
-            index * chunk_sz
-        } else {
-            chunk.size() as i32
-        };
-        let arr = match JsFuture::from(chunk.array_buffer()).await {
-            Ok(u) => u,
-            Err(e) => anyhow::bail!(e.as_string().unwrap()),
-        };
-        log!(
-            "uploading chunk {}/{} ({}): {}",
-            index + 1,
-            nchunks,
-            chunk.size(),
-            blob_text(&chunk).await
-        );
-        let res = gloo_net::http::Request::patch(location)
-            .header("Content-Length", chunk.size().to_string().as_str())
-            .header("Upload-Offset", offset.to_string().as_str())
-            .header("Content-Type", "application/offset+octet-stream")
-            .header("Tus-Resumable", "1.0.0")
-            .body(arr)
-            .context("error setting request body")?
-            .send()
-            .await
-            .context("error sending request")?;
-        if res.status() != 204 {
-            anyhow::bail!("bad response");
-        }
-    }
+    upload
+        .for_each_unsent(move |i, text| async move {
+            log!("uploading chunk {}/{}: {}", i + 1, nchunks, text);
+            let res = gloo_net::http::Request::patch(location)
+                .header("Content-Length", text.len().to_string().as_str())
+                .header("Upload-Offset", (i * chunk_sz).to_string().as_str())
+                .header("Content-Type", "application/offset+octet-stream")
+                .header("Tus-Resumable", "1.0.0")
+                .body(text)
+                .expect("error setting request body")
+                .send()
+                .await
+                .expect("error sending request");
+            if res.status() == 204 {
+                true
+            } else {
+                false
+            }
+        })
+        .await;
     Ok(())
-}
-
-async fn blob_text(blob: &Blob) -> String {
-    JsFuture::from(
-        web_sys::Response::new_with_opt_blob(Some(blob))
-            .unwrap()
-            .text()
-            .unwrap(),
-    )
-    .await
-    .unwrap()
-    .as_string()
-    .unwrap()
 }
