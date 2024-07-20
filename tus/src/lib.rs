@@ -1,40 +1,6 @@
-extern crate console_error_panic_hook;
-extern crate wasm_bindgen;
-
-use std::panic;
-use wasm_bindgen::prelude::*;
-use web_sys_resumable::ResumableUpload;
-
-macro_rules! log {
-    ($($t:tt)*) => (web_sys::console::log_1(
-        &JsValue::from(
-            format_args!($($t)*).to_string()
-        )
-    ))
-}
-
-#[wasm_bindgen]
-pub fn main() {
-    panic::set_hook(Box::new(console_error_panic_hook::hook));
-    wasm_bindgen_futures::spawn_local(async move {
-        let file = {
-            let str_seq = js_sys::Array::new();
-            str_seq.push(&JsValue::from_str(&"blah".repeat(5)));
-            web_sys::File::new_with_str_sequence(&str_seq, "blah.txt").unwrap()
-        };
-        let href = "http://localhost:1080/files/";
-        log!("creating new upload at {}", href);
-        let (mut upload, location) = new_upload(&file, href, 3).await.unwrap();
-        log!("successfully created at {}", location);
-        log!("uploading content");
-        continue_upload(&mut upload, &location).await.unwrap();
-        log!("content uploaded successfully!");
-    });
-}
-
 /// Registers a new resumable upload with the remote located at `href`.
 /// Returns the resumable upload metadata.
-async fn new_upload<'a>(
+pub async fn new_upload<'a>(
     file: &'a web_sys::File,
     href: &str,
     chunk_sz: i32,
@@ -90,4 +56,24 @@ async fn continue_upload<'a>(
         })
         .await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[wasm_bindgen_test]
+    async fn main() {
+        let file = {
+            let str_seq = js_sys::Array::new();
+            str_seq.push(&JsValue::from_str(&"blah".repeat(5)));
+            web_sys::File::new_with_str_sequence(&str_seq, "blah.txt").unwrap()
+        };
+        let href = "http://localhost:1080/files/";
+        log!("creating new upload at {}", href);
+        let (mut upload, location) = new_upload(&file, href, 3).await.unwrap();
+        log!("successfully created at {}", location);
+        log!("uploading content");
+        continue_upload(&mut upload, &location).await.unwrap();
+        log!("content uploaded successfully!");
+    }
 }
