@@ -9,5 +9,5 @@ See [`/resumable`](resumable/) crate.
 
 - [x] tests
 - [ ] CI
-- [ ] v0.1.0 release
+- [x] v0.1.0 release
 - [ ] publish to crates.io
