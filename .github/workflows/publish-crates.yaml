@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  publish-crates:
+  resumable:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,6 +25,16 @@ jobs:
         run: |
           cd resumable
           cargo publish
+
+  tus:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Login
+        env:
+          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: cargo login ${CRATES_IO_TOKEN}
       - name: Publish tus_web
         run: |
           cd tus
