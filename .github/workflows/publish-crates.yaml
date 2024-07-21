@@ -1,0 +1,31 @@
+name: publish-crates
+run-name: Publish Crates
+on:
+  release:
+    types:
+      - published
+      - created
+      - edited
+
+concurrency:
+  group: publish-crates
+  cancel-in-progress: true
+
+jobs:
+  publish-crates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Login
+        env:
+          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: cargo login ${CRATES_IO_TOKEN}
+      - name: Publish web_sys_resumable
+        run: |
+          cd resumable
+          cargo publish
+      - name: Publish tus_web
+        run: |
+          cd tus
+          cargo publish
