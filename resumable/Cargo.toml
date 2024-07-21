@@ -2,6 +2,9 @@
 name = "web_sys_resumable"
 version = "0.1.0"
 edition = "2021"
+license-file = "../LICENSE.md"
+description = "Primitive for resumable uploads over web_sys::File"
+repository = "https://github.com/littlebenlittle/web_sys_resumable"
 
 [dependencies]
 anyhow = "1"

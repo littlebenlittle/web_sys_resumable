@@ -2,6 +2,9 @@
 name = "tus_web"
 version = "0.1.0"
 edition = "2021"
+license-file = "../LICENSE.md"
+description = "TUS protocol client for the web."
+repository = "https://github.com/littlebenlittle/web_sys_resumable"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
